@@ -35,6 +35,11 @@ const User = sequelize.define("User", {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
   },
+  validated: {
+    type: DataTypes.BOOLEAN,
+    allowNull: true,
+    defaultValue: false, // Set default to false for new users
+  },
 });
 User.associate = (models) => {
   User.hasMany(models.Avis, {

@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Abonnement = require("../models/Abonnement");
 const authenticate = require("../middlewares/auth");
+const Paiement = require("../models/Paiement");
 
 // 🔽 Créer un abonnement
 router.post("/", authenticate, async (req, res) => {

@@ -1,6 +1,7 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const Paiement = require("../models/Paiement");
 
 const Abonnement = require("../models/Abonnement");
 const router = express.Router();
@@ -149,15 +150,34 @@ router.post(
       const { utilisateur_id } = session.metadata;
 
       try {
+        // ✅ Activate subscription
         await activateSubscription(session.id, utilisateur_id);
         console.log(
           "✅ Subscription activated via webhook for:",
           utilisateur_id
         );
+
+        // 🔍 Get the Abonnement to link
+        const abonnement = await Abonnement.findOne({
+          where: { stripe_session_id: session.id, utilisateur_id },
+        });
+
+        // ✅ Create Paiement
+        await Paiement.create({
+          montant: session.amount_total / 100, // convert from cents
+          mode: "stripe",
+          abonnement_id: abonnement?.id || null,
+          client_id: utilisateur_id,
+          prestataire_id: null,
+          statut: "payé",
+        });
+
+        console.log("💰 Paiement enregistré pour:", utilisateur_id);
       } catch (error) {
         console.error("❌ Webhook processing failed:", error.message);
       }
     }
+
 
     res.json({ received: true });
   }
@@ -241,6 +261,23 @@ router.post("/verify-abonnement", authenticateToken, async (req, res) => {
     const result = await pollForActivation(attempt);
 
     if (result.success) {
+
+     try {
+       await Paiement.create({
+         montant: result.subscription.montant,
+         mode: "stripe",
+         abonnement_id: result.subscription.id,
+         client_id: req.user.id,
+         prestataire_id: null, // ou un ID si applicable
+         statut: "payé",
+       });
+     } catch (err) {
+       console.error("Erreur lors de la création du paiement :", err.message);
+       // Tu peux choisir ici de retourner une erreur ou pas
+     }
+
+
+
       return res.json(result);
     }
 
@@ -263,5 +300,49 @@ router.post("/verify-abonnement", authenticateToken, async (req, res) => {
       "Verification failed after multiple attempts. Please contact support.",
   });
 });
+
+router.post("/finalize", authenticateToken, async (req, res) => {
+  const { session_id } = req.body;
+
+  try {
+    const session = await stripe.checkout.sessions.retrieve(session_id);
+
+    if (session.payment_status !== "paid") {
+      return res.status(400).json({ message: "Paiement non confirmé" });
+    }
+
+    const utilisateur_id = req.user.id;
+
+    // 🔄 Activate the subscription
+    const result = await activateSubscription(session.id, utilisateur_id);
+
+    // 🧾 Get the abonnement just activated
+    const abonnement = await Abonnement.findOne({
+      where: { stripe_session_id: session.id, utilisateur_id },
+    });
+
+    if (!abonnement) {
+      return res
+        .status(404)
+        .json({ message: "Abonnement non trouvé pour ce session" });
+    }
+
+    // 💰 Create Paiement record
+    await Paiement.create({
+      montant: session.amount_total / 100,
+      mode: "stripe",
+      abonnement_id: abonnement.id,
+      client_id: utilisateur_id,
+      prestataire_id: null,
+      statut: "payé",
+    });
+
+    res.json({ message: "Paiement et abonnement enregistrés avec succès" });
+  } catch (err) {
+    console.error("❌ Erreur finalisation paiement:", err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
 
 module.exports = router;

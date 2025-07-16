@@ -5,6 +5,7 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const Service = require("../models/Service");
 const Reservation = require("../models/Reservation");
+const Paiement = require("../models/Paiement"); // make sure it's imported
 
 const router = express.Router();
 
@@ -179,8 +180,7 @@ router.post("/verify-payment", authenticateToken, async (req, res) => {
       const { client_id, service_id, date, heure, prestataire_id } =
         session.metadata;
 
-      // ✅ Check for missing metadata fields
-      if (!client_id || !service_id || !date || !heure) {
+      if (!client_id || !service_id || !date || !heure || !prestataire_id) {
         return res.status(400).json({
           success: false,
           message: "❌ Missing metadata from Stripe session",
@@ -188,17 +188,7 @@ router.post("/verify-payment", authenticateToken, async (req, res) => {
         });
       }
 
-      console.log("🔍 Processing payment verification:", {
-        client_id,
-        service_id,
-        date,
-        heure,
-        prestataire_id,
-        client_id_type: typeof client_id,
-        service_id_type: typeof service_id,
-      });
-
-      // 🔎 Check if reservation already exists
+      // Check for existing reservation
       const existingReservation = await Reservation.findOne({
         where: {
           client_id,
@@ -210,7 +200,6 @@ router.post("/verify-payment", authenticateToken, async (req, res) => {
       });
 
       if (existingReservation) {
-        console.log("✅ Reservation already exists:", existingReservation.id);
         return res.json({
           success: true,
           message: "Reservation already exists",
@@ -218,7 +207,7 @@ router.post("/verify-payment", authenticateToken, async (req, res) => {
         });
       }
 
-      // 💾 Create new reservation
+      // Create reservation
       const reservation = await Reservation.create({
         client_id,
         service_id,
@@ -229,28 +218,38 @@ router.post("/verify-payment", authenticateToken, async (req, res) => {
         prestataire_id,
       });
 
-      console.log("✅ Reservation created:", reservation.toJSON());
+      // 💰 Create payment record
+      await Paiement.create({
+        montant: session.amount_total / 100,
+        mode: "en_ligne",
+        reservation_id: reservation.id,
+        abonnement_id: null,
+        client_id,
+        prestataire_id,
+        statut: "payé",
+      });
 
-      res.json({
+      return res.json({
         success: true,
-        message: "Reservation created successfully",
+        message: "Reservation and payment created successfully",
         reservation,
       });
     } else {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
         message: "Payment not completed",
       });
     }
   } catch (error) {
     console.error("❌ Error verifying payment:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Error verifying payment",
       error: error.message,
     });
   }
 });
+
 
 // Debug route to check data types and database schema
 router.post("/debug-payment", authenticateToken, async (req, res) => {

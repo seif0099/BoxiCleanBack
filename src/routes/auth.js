@@ -16,11 +16,14 @@ router.post("/register", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // If role is prestataire, set validated to false
+    const validated = role === "prestataire" ? false : true;
     const newUser = await User.create({
       fullName,
       email,
       password: hashedPassword,
       role,
+      validated,
     });
 
     res.status(201).json({ message: "User registered", user: newUser });
@@ -42,6 +45,13 @@ router.post("/login", async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match)
       return res.status(401).json({ message: "Invalid email or password" });
+
+    // Block prestataire login if not validated
+    if (user.role === "prestataire" && !user.validated) {
+      return res
+        .status(403)
+        .json({ message: "Account not yet validated by admin" });
+    }
 
     const token = jwt.sign(
       { id: user.id, role: user.role },
