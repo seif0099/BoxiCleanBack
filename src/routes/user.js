@@ -190,140 +190,164 @@ router.get("/prestataire/:id/export-pdf", async (req, res) => {
         });
       }
     } // Fix the earnings query - change 'status' to 'statut'
-if (type === "earnings") {
-  const reservations = await Reservation.findAll({
-    where: { 
-      prestataire_id: id, 
-      statut: "terminee" // ✅ Changed from 'status' to 'statut'
-    },
-    include: [{ model: Service }],
-    order: [["createdAt", "DESC"]],
-  });
+    if (type === "earnings") {
+      const reservations = await Reservation.findAll({
+        where: {
+          prestataire_id: id,
+          statut: "terminee", // ✅ Changed from 'status' to 'statut'
+        },
+        include: [{ model: Service }],
+        order: [["createdAt", "DESC"]],
+      });
 
-  let total = 0;
-  addHeader("Earnings Report", "[EARNINGS]");
-
-  doc
-    .fontSize(12)
-    .fillColor("#34495e")
-    .text(`Prestataire: ${prestataire?.fullName || "Unknown"}`, { align: "left" })
-    .text(`Email: ${prestataire?.email || "Unknown"}`)
-    .text(`Completed Reservations: ${reservations.length}`)
-    .moveDown(1);
-
-  if (reservations.length === 0) {
-    doc
-      .fontSize(14)
-      .fillColor("#e74c3c")
-      .text("No completed reservations found.", { align: "center" });
-  } else {
-    reservations.forEach((r, i) => {
-      if (doc.y > 700) {
-        doc.addPage();
-      }
-
-      // Also fix the price field if needed
-      const price = r.prix_base || r.price || 0; // ✅ Check both possible price fields
-      total += price;
+      let total = 0;
+      addHeader("Earnings Report", "[EARNINGS]");
 
       doc
-        .fontSize(14)
-        .fillColor("#2c3e50")
-        .text(`#${i + 1}`, 50, doc.y, { continued: true })
-        .text(` ${r.Service?.nom_service || r.Service?.nom || "Service"}`, { continued: true }) // ✅ Fixed service name field
-        .fillColor("#27ae60")
-        .text(` +${price} TND`, { align: "right" });
-
-      doc
-        .fillColor("#7f8c8d")
-        .fontSize(11)
-        .text(`Date: ${r.date ? new Date(r.date).toLocaleDateString() : "Not specified"}`, 70, doc.y);
-
-      doc
-        .strokeColor("#ecf0f1")
-        .lineWidth(1)
-        .moveTo(50, doc.y + 5)
-        .lineTo(550, doc.y + 5)
-        .stroke();
-
-      doc.moveDown(0.8);
-    });
-
-    // Total earnings box
-    doc
-      .rect(50, doc.y + 10, 500, 60)
-      .fillAndStroke("#3498db", "#2980b9")
-      .fillColor("white")
-      .fontSize(18)
-      .text(`Total Earnings: ${total} TND`, 60, doc.y + 30, { align: "center" });
-  }
-}
-
-// Also fix the reservations section
-if (type === "reservations") {
-  const reservations = await Reservation.findAll({
-    where: { prestataire_id: id },
-    include: [{ model: User, as: "Client" }, { model: Service }],
-    order: [["createdAt", "DESC"]],
-  });
-
-  addHeader("Reservations Report", "[RESERVATIONS]");
-
-  doc
-    .fontSize(12)
-    .fillColor("#34495e")
-    .text(`Prestataire: ${prestataire?.fullName || "Unknown"}`, { align: "left" })
-    .text(`Email: ${prestataire?.email || "Unknown"}`)
-    .text(`Total Reservations: ${reservations.length}`)
-    .moveDown(1);
-
-  if (reservations.length === 0) {
-    doc
-      .fontSize(14)
-      .fillColor("#e74c3c")
-      .text("No reservations found.", { align: "center" });
-  } else {
-    reservations.forEach((r, i) => {
-      if (doc.y > 700) {
-        doc.addPage();
-      }
-
-      const status = r.statut || "pending"; // ✅ Changed from 'status' to 'statut'
-      const statusColor =
-        status === "completed" || status === "terminé" // ✅ Handle both languages
-          ? "#27ae60"
-          : status === "cancelled" || status === "annulé"
-          ? "#e74c3c"
-          : "#f39c12";
-
-      doc
-        .fontSize(14)
-        .fillColor("#2c3e50")
-        .text(`#${i + 1}`, 50, doc.y, { continued: true })
-        .text(` ${r.Service?.nom_service || r.Service?.nom || "Service"} `, { continued: true }) // ✅ Fixed service name
-        .fillColor("#7f8c8d")
         .fontSize(12)
-        .text(`booked by ${r.Client?.fullName || r.Client?.nom || "Client"}`);
-
-      doc
         .fillColor("#34495e")
-        .text(`Date: ${r.date ? new Date(r.date).toLocaleDateString() : "Not specified"}`, 70, doc.y)
-        .fillColor(statusColor)
-        .text(`Status: ${status}`, 70, doc.y)
-        .fillColor("#3498db")
-        .text(`Price: ${r.prix_base || r.price || 0} TND`, 70, doc.y); // ✅ Fixed price field
+        .text(`Prestataire: ${prestataire?.fullName || "Unknown"}`, {
+          align: "left",
+        })
+        .text(`Email: ${prestataire?.email || "Unknown"}`)
+        .text(`Completed Reservations: ${reservations.length}`)
+        .moveDown(1);
+
+      if (reservations.length === 0) {
+        doc
+          .fontSize(14)
+          .fillColor("#e74c3c")
+          .text("No completed reservations found.", { align: "center" });
+      } else {
+        reservations.forEach((r, i) => {
+          if (doc.y > 700) {
+            doc.addPage();
+          }
+
+          // Also fix the price field if needed
+          const price = r.prix_base || r.price || 0; // ✅ Check both possible price fields
+          total += price;
+
+          doc
+            .fontSize(14)
+            .fillColor("#2c3e50")
+            .text(`#${i + 1}`, 50, doc.y, { continued: true })
+            .text(` ${r.Service?.nom_service || r.Service?.nom || "Service"}`, {
+              continued: true,
+            }) // ✅ Fixed service name field
+            .fillColor("#27ae60")
+            .text(` +${price} TND`, { align: "right" });
+
+          doc
+            .fillColor("#7f8c8d")
+            .fontSize(11)
+            .text(
+              `Date: ${
+                r.date ? new Date(r.date).toLocaleDateString() : "Not specified"
+              }`,
+              70,
+              doc.y
+            );
+
+          doc
+            .strokeColor("#ecf0f1")
+            .lineWidth(1)
+            .moveTo(50, doc.y + 5)
+            .lineTo(550, doc.y + 5)
+            .stroke();
+
+          doc.moveDown(0.8);
+        });
+
+        // Total earnings box
+        doc
+          .rect(50, doc.y + 10, 500, 60)
+          .fillAndStroke("#3498db", "#2980b9")
+          .fillColor("white")
+          .fontSize(18)
+          .text(`Total Earnings: ${total} TND`, 60, doc.y + 30, {
+            align: "center",
+          });
+      }
+    }
+
+    // Also fix the reservations section
+    if (type === "reservations") {
+      const reservations = await Reservation.findAll({
+        where: { prestataire_id: id },
+        include: [{ model: User, as: "Client" }, { model: Service }],
+        order: [["createdAt", "DESC"]],
+      });
+
+      addHeader("Reservations Report", "[RESERVATIONS]");
 
       doc
-        .strokeColor("#ecf0f1")
-        .lineWidth(1)
-        .moveTo(50, doc.y + 5)
-        .lineTo(550, doc.y + 5)
-        .stroke();
+        .fontSize(12)
+        .fillColor("#34495e")
+        .text(`Prestataire: ${prestataire?.fullName || "Unknown"}`, {
+          align: "left",
+        })
+        .text(`Email: ${prestataire?.email || "Unknown"}`)
+        .text(`Total Reservations: ${reservations.length}`)
+        .moveDown(1);
 
-      doc.moveDown(1);
-    });
-  }
+      if (reservations.length === 0) {
+        doc
+          .fontSize(14)
+          .fillColor("#e74c3c")
+          .text("No reservations found.", { align: "center" });
+      } else {
+        reservations.forEach((r, i) => {
+          if (doc.y > 700) {
+            doc.addPage();
+          }
 
+          const status = r.statut || "pending"; // ✅ Changed from 'status' to 'statut'
+          const statusColor =
+            status === "completed" || status === "terminé" // ✅ Handle both languages
+              ? "#27ae60"
+              : status === "cancelled" || status === "annulé"
+              ? "#e74c3c"
+              : "#f39c12";
+
+          doc
+            .fontSize(14)
+            .fillColor("#2c3e50")
+            .text(`#${i + 1}`, 50, doc.y, { continued: true })
+            .text(
+              ` ${r.Service?.nom_service || r.Service?.nom || "Service"} `,
+              { continued: true }
+            ) // ✅ Fixed service name
+            .fillColor("#7f8c8d")
+            .fontSize(12)
+            .text(
+              `booked by ${r.Client?.fullName || r.Client?.nom || "Client"}`
+            );
+
+          doc
+            .fillColor("#34495e")
+            .text(
+              `Date: ${
+                r.date ? new Date(r.date).toLocaleDateString() : "Not specified"
+              }`,
+              70,
+              doc.y
+            )
+            .fillColor(statusColor)
+            .text(`Status: ${status}`, 70, doc.y)
+            .fillColor("#3498db")
+            .text(`Price: ${r.prix_base || r.price || 0} TND`, 70, doc.y); // ✅ Fixed price field
+
+          doc
+            .strokeColor("#ecf0f1")
+            .lineWidth(1)
+            .moveTo(50, doc.y + 5)
+            .lineTo(550, doc.y + 5)
+            .stroke();
+
+          doc.moveDown(1);
+        });
+      }
     } else if (type === "reviews") {
       const reviews = await Avis.findAll({
         where: { prestataire_id: id },
@@ -431,5 +455,9 @@ if (type === "reservations") {
     }
   }
 });
-
+// LOGOUT (frontend only needs to remove the token)
+router.post("/logout", (req, res) => {
+  // No server-side action required for JWT unless you use a blacklist.
+  return res.status(200).json({ message: "Déconnexion réussie." });
+});
 module.exports = router;

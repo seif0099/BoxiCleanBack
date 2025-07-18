@@ -43,7 +43,7 @@ const Product = require("./models/Produit");
 const Livraison = require("./models/Livraison");
 const Commande = require("./models/Commande");
 const CommandeItem = require("./models/CommandeItem");
-
+const Panier = require("./models/Panier");
 // ✅ Associations
 User.hasMany(Service, { foreignKey: "prestataire_id" });
 Service.belongsTo(User, { foreignKey: "prestataire_id" });
@@ -129,7 +129,14 @@ sequelize.sync({ alter: true }).then(() => {
 const adminRoutes = require("./routes/admin");
 app.use("/admin", adminRoutes);
 
+const panierRoutes = require("./routes/panier");
+app.use("/panier", panierRoutes);
 // Ensure uploads directory exists
+const checkoutRoutes = require("./routes/checkout");
+app.use("/checkout", checkoutRoutes);
+const commandeRoutes = require("./routes/commande");
+app.use("/commande", commandeRoutes);
+
 
 const classementRoutes = require("./routes/user"); // or user
 app.use("/prestataires", classementRoutes);

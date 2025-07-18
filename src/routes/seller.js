@@ -138,5 +138,16 @@ router.get("/orders", authenticate, async (req, res) => {
     res.status(500).json({ message: "Erreur serveur" });
   }
 });
+router.get("/all-products", async (req, res) => {
+  try {
+    const products = await Product.findAll({
+      order: [["createdAt", "DESC"]],
+    });
+    res.json(products);
+  } catch (err) {
+    console.error("Erreur chargement produits:", err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
 
 module.exports = router;
